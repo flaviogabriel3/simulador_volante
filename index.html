@@ -3,185 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simulador de Conducción - Manual</title>
+    <title>Simulador V4 - Cámara y Conos</title>
     <style>
-        body { margin: 0; background: #ffffff; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
-        canvas { display: block; background: #fdfdfd; }
+        body { margin: 0; background: #e0e0e0; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
+        canvas { display: block; }
 
-        /* Interfaz de Datos */
-        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); pointer-events: none; }
+        /* UI superpuesta (Fija en la pantalla) */
+        .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .info-panel div { margin-bottom: 5px; font-weight: bold; }
-        .val { color: #007bff; }
+        .val { color: #d35400; }
 
-        /* Contenedor de Controles */
-        .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; }
+        .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; pointer-events: auto; }
         .control-group { display: flex; gap: 15px; }
 
-        /* Estilo de Botones */
-        .btn { width: 80px; height: 80px; border-radius: 15px; border: none; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; -webkit-tap-highlight-color: transparent; font-size: 14px; text-transform: uppercase; }
-        .btn:active { transform: scale(0.92); opacity: 0.8; }
+        .btn { width: 80px; height: 80px; border-radius: 15px; border: none; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; -webkit-tap-highlight-color: transparent; font-size: 14px; text-transform: uppercase; box-shadow: 0 4px #999; transition: all 0.1s; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 0 #999; }
         
-        .btn-steer { background: #6c757d; } /* Gris para dirección */
-        .btn-drive { background: #28a745; } /* Verde para avance */
-        .btn-reverse { background: #ffc107; color: #333; } /* Amarillo para reversa */
-        .btn-brake { background: #dc3545; width: 100px; } /* Rojo para freno */
+        .btn-steer { background: #7f8c8d; } 
+        .btn-drive { background: #27ae60; } 
+        .btn-reverse { background: #f39c12; color: #333; } 
+        .btn-brake { background: #c0392b; width: 90px; }
 
-        #volante-visual { width: 60px; height: 60px; border: 4px solid #333; border-radius: 50%; margin: 10px auto; position: relative; transition: transform 0.1s linear; }
-        #volante-visual::after { content: ''; position: absolute; top: 0; left: 50%; width: 4px; height: 50%; background: #dc3545; transform: translateX(-50%); }
+        #volante-visual { width: 50px; height: 50px; border: 3px solid #333; border-radius: 50%; margin: 10px auto 0; position: relative; }
+        #volante-visual::after { content: ''; position: absolute; top: 0; left: 50%; width: 3px; height: 50%; background: #c0392b; transform: translateX(-50%); }
     </style>
 </head>
 <body>
 
-    <div class="info-panel">
-        <div>Vueltas: <span id="vueltas" class="val">0.00</span></div>
-        <div>Ángulo Ruedas: <span id="angRuedas" class="val">0</span>°</div>
-        <div id="volante-visual"></div>
-    </div>
-
-    <div class="controls-container">
-        <div class="control-group">
-            <button class="btn btn-steer" id="btn-left">Izq</button>
-            <button class="btn btn-steer" id="btn-right">Der</button>
-        </div>
-
-        <div class="control-group">
-            <button class="btn btn-brake" id="btn-brake">Freno</button>
-            <button class="btn btn-reverse" id="btn-back">Rev</button>
-            <button class="btn btn-drive" id="btn-forward">D</button>
-        </div>
-    </div>
-
     <canvas id="simCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div class="info-panel">
+            <div>Vueltas: <span id="vueltas" class="val">0.00</span></div>
+            <div id="volante-visual"></div>
+        </div>
+
+        <div class="controls-container">
+            <div class="control-group">
+                <button class="btn btn-steer" id="btn-left">Izq</button>
+                <button class="btn btn-steer" id="btn-right">Der</button>
+            </div>
+            <div class="control-group">
+                <button class="btn btn-brake" id="btn-brake">Freno</button>
+                <button class="btn btn-reverse" id="btn-back">Rev</button>
+                <button class="btn btn-drive" id="btn-forward">D</button>
+            </div>
+        </div>
+    </div>
 
 <script>
     const canvas = document.getElementById('simCanvas');
     const ctx = canvas.getContext('2d');
     const volanteUI = document.getElementById('volante-visual');
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // Ajustar canvas al tamaño total de la ventana
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
-    // Estado de los botones
     const inputs = { left: false, right: false, forward: false, back: false, brake: false };
 
     const car = {
-        x: canvas.width / 2,
-        y: canvas.height / 2,
-        width: 40,
-        height: 80,
-        angle: -Math.PI / 2,
+        x: 0, // Inicio en el centro del mundo virtual
+        y: 0,
+        width: 42,
+        height: 84, // Largo del auto
+        angle: -Math.PI / 2, // Mirando hacia arriba
         wheelAngleDeg: 0,
-        maxWheelAngle: 720, // 2 vueltas completas
+        maxWheelAngle: 720,
         steeringRatio: 18,
         speed: 0,
-        maxSpeed: 7,
-        accel: 0.15,
+        maxSpeed: 8,
+        accel: 0.2,
         friction: 0.97
     };
 
-    // Mapeo de eventos táctiles y mouse
+    // Definición de los conos (Alineados para estacionar)
+    // Distancia entre conos: aprox 2.5 veces el largo del auto (84 * 2.5 = 210)
+    const startX = 200;
+    const startY = -150;
+    const cones = [
+        { x: startX, y: startY },
+        { x: startX + 210, y: startY }
+    ];
+
+    // Setup de botones (igual que antes)
     const setupButton = (id, key) => {
         const btn = document.getElementById(id);
         const start = (e) => { e.preventDefault(); inputs[key] = true; };
         const end = () => inputs[key] = false;
-        btn.addEventListener('touchstart', start);
-        btn.addEventListener('touchend', end);
-        btn.addEventListener('mousedown', start);
-        btn.addEventListener('mouseup', end);
-        btn.addEventListener('mouseleave', end);
-    };
-
-    setupButton('btn-left', 'left');
-    setupButton('btn-right', 'right');
-    setupButton('btn-forward', 'forward');
-    setupButton('btn-back', 'back');
-    setupButton('btn-brake', 'brake');
-
-    function update() {
-        // 1. Lógica del Volante (Se queda donde lo dejas)
-        if (inputs.left) car.wheelAngleDeg -= 4;
-        if (inputs.right) car.wheelAngleDeg += 4;
-        
-        car.wheelAngleDeg = Math.max(-car.maxWheelAngle, Math.min(car.maxWheelAngle, car.wheelAngleDeg));
-
-        // 2. Lógica de Tracción
-        if (inputs.brake) {
-            car.speed *= 0.85; // Freno fuerte
-        } else if (inputs.forward) {
-            car.speed += car.accel;
-        } else if (inputs.back) {
-            car.speed -= car.accel;
-        } else {
-            car.speed *= car.friction; // Inercia
-        }
-
-        // Limitar velocidad máxima
-        if (car.speed > car.maxSpeed) car.speed = car.maxSpeed;
-        if (car.speed < -car.maxSpeed/2) car.speed = -car.maxSpeed/2;
-
-        // 3. Física de Giro
-        const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
-        if (Math.abs(car.speed) > 0.1) {
-            // El giro depende de la velocidad
-            car.angle += (steerAngleRad * car.speed) / 130;
-        }
-
-        car.x += Math.cos(car.angle) * car.speed;
-        car.y += Math.sin(car.angle) * car.speed;
-
-        // Teletransporte en bordes
-        if (car.x > canvas.width) car.x = 0; if (car.x < 0) car.x = canvas.width;
-        if (car.y > canvas.height) car.y = 0; if (car.y < 0) car.y = canvas.height;
-
-        // Actualizar UI
-        document.getElementById('vueltas').innerText = (car.wheelAngleDeg / 360).toFixed(2);
-        document.getElementById('angRuedas').innerText = Math.round(car.wheelAngleDeg / car.steeringRatio);
-        volanteUI.style.transform = `rotate(${car.wheelAngleDeg}deg)`;
-    }
-
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        ctx.save();
-        ctx.translate(car.x, car.y);
-        ctx.rotate(car.angle);
-
-        // Chasis del auto (Vista desde arriba)
-        ctx.fillStyle = "#333"; // Color oscuro para que resalte en el blanco
-        ctx.fillRect(-car.height/2, -car.width/2, car.height, car.width);
-        
-        // Ventana delantera (Indica frente)
-        ctx.fillStyle = "#add8e6";
-        ctx.fillRect(12, -car.width/2 + 4, 15, car.width - 8);
-
-        // Ruedas Delanteras
-        const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
-        drawWheel(22, -18, steerAngleRad);
-        drawWheel(22, 18, steerAngleRad);
-
-        // Ruedas Traseras (Fijas)
-        drawWheel(-22, -18, 0);
-        drawWheel(-22, 18, 0);
-
-        ctx.restore();
-    }
-
-    function drawWheel(x, y, angle) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle);
-        ctx.fillStyle = "#555";
-        ctx.fillRect(-10, -4, 20, 8);
-        ctx.restore();
-    }
-
-    function loop() {
-        update();
-        draw();
-        requestAnimationFrame(loop);
-    }
-
-    loop();
-</script>
-</body>
-</html>
+        ['touchstart', 'mousedown'].forEach(e => btn.addEventListener(e, start));
+        ['touchend', 'mouseup', 'mouseleave'].forEach(e => btn.addEventListener
