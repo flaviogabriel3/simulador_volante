@@ -2,24 +2,29 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Simulador: Volante Fijo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simulador Celular</title>
     <style>
-        body { margin: 0; background: #1a1a1a; color: #00ff00; font-family: 'Courier New', monospace; overflow: hidden; }
-        canvas { display: block; background: #222; margin: 20px auto; border: 2px solid #444; }
-        .ui { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 1px solid #444; }
-        .highlight { color: #fff; font-weight: bold; }
-        #volanteVisual { width: 100px; height: 100px; border: 5px solid #555; border-radius: 50%; margin-top: 10px; position: relative; transition: transform 0.1s; }
+        body { margin: 0; background: #1a1a1a; color: #00ff00; font-family: sans-serif; overflow: hidden; touch-action: none; }
+        canvas { display: block; background: #222; }
+        .ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; font-size: 12px; pointer-events: none; }
+        .controls { position: absolute; bottom: 20px; width: 100%; text-align: center; }
+        button { padding: 15px 30px; font-size: 18px; background: #00ff00; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; }
+        #volanteVisual { width: 60px; height: 60px; border: 3px solid #555; border-radius: 50%; margin: 10px auto; position: relative; }
         #volanteVisual::before { content: ''; position: absolute; top: 0; left: 45%; width: 10%; height: 50%; background: #ff4444; }
     </style>
 </head>
 <body>
     <div class="ui">
-        <div class="stat">Vueltas: <span id="vueltas" class="highlight">0.00</span></div>
-        <div class="stat">Ángulo Volante: <span id="angVolante" class="highlight">0</span>°</div>
-        <hr>
+        Vueltas: <span id="vueltas">0.00</span><br>
+        Inclinación Celular: <span id="tilt">0</span>°
         <div id="volanteVisual"></div>
-        <p><small>Las ruedas NO vuelven solas al soltar.</small></p>
     </div>
+
+    <div class="controls" id="overlay">
+        <button onclick="requestPermissions()">ACTIVAR SENSORES</button>
+    </div>
+
     <canvas id="simCanvas"></canvas>
 
 <script>
@@ -27,51 +32,78 @@
     const ctx = canvas.getContext('2d');
     const volanteDiv = document.getElementById('volanteVisual');
     
-    canvas.width = window.innerWidth * 0.9;
-    canvas.height = 600;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
     const car = {
         x: canvas.width / 2,
         y: canvas.height / 2,
-        width: 40,
-        height: 80,
+        width: 30,
+        height: 60,
         angle: -Math.PI / 2,
-        
-        // Lógica del volante
-        wheelAngleDeg: 0,      
-        maxWheelAngle: 540,    // 1.5 vueltas
-        steeringRatio: 15,     
-        
+        wheelAngleDeg: 0,
+        maxWheelAngle: 540,
+        steeringRatio: 12,
         speed: 0,
-        accel: 0.15,
+        accel: 0,
         friction: 0.96
     };
 
-    const keys = {};
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
+    let sensorActive = false;
+    let tiltX = 0; // Gamma (Izquierda/Derecha)
+    let tiltY = 0; // Beta (Adelante/Atrás)
+
+    // Solicitar permisos para iOS y activar sensores
+    function requestPermissions() {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response == 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                        startSim();
+                    }
+                })
+                .catch(console.error);
+        } else {
+            // Para Android y navegadores de escritorio que no requieren permiso
+            window.addEventListener('deviceorientation', handleOrientation);
+            startSim();
+        }
+    }
+
+    function handleOrientation(event) {
+        // Gamma: inclinación izquierda/derecha (-90 a 90)
+        tiltX = event.gamma; 
+        // Beta: inclinación adelante/atrás (-180 a 180)
+        tiltY = event.beta;
+        sensorActive = true;
+    }
+
+    function startSim() {
+        document.getElementById('overlay').style.display = 'none';
+    }
 
     function update() {
-        // 1. Manejo del Volante (SIN RETORNO AUTOMÁTICO)
-        if (keys['ArrowLeft']) {
-            car.wheelAngleDeg -= 5; 
-        } else if (keys['ArrowRight']) {
-            car.wheelAngleDeg += 5;
+        if (sensorActive) {
+            // 1. Control de Volante por Inclinación (Sin retorno automático)
+            // Si inclinas el cel más de 5 grados, el volante gira
+            if (tiltX > 7) {
+                car.wheelAngleDeg += (tiltX / 10);
+            } else if (tiltX < -7) {
+                car.wheelAngleDeg += (tiltX / 10);
+            }
+
+            // 2. Control de Velocidad por Inclinación Frontal
+            // Si inclinas el cel hacia adelante (beta > 45 aprox)
+            if (tiltY > 40) car.speed += 0.15; // Acelerar
+            if (tiltY < 10) car.speed -= 0.15; // Frenar/Reversa
         }
-        // Se ha eliminado la línea: car.wheelAngleDeg *= 0.92;
 
-        // Limitar giro máximo
-        if (car.wheelAngleDeg > car.maxWheelAngle) car.wheelAngleDeg = car.maxWheelAngle;
-        if (car.wheelAngleDeg < -car.maxWheelAngle) car.wheelAngleDeg = -car.maxWheelAngle;
-
-        // 2. Ángulo de las ruedas para la física
-        const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
-
-        // 3. Movimiento
-        if (keys['ArrowUp']) car.speed += car.accel;
-        if (keys['ArrowDown']) car.speed -= car.accel;
+        // Límites y Física
+        car.wheelAngleDeg = Math.max(-car.maxWheelAngle, Math.min(car.maxWheelAngle, car.wheelAngleDeg));
         car.speed *= car.friction;
 
+        const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
         if (Math.abs(car.speed) > 0.1) {
             car.angle += (steerAngleRad * car.speed) / 100;
         }
@@ -79,43 +111,41 @@
         car.x += Math.cos(car.angle) * car.speed;
         car.y += Math.sin(car.angle) * car.speed;
 
-        // 4. Actualizar Interfaz
-        document.getElementById('angVolante').innerText = Math.round(car.wheelAngleDeg);
+        // Teletransporte en los bordes para no perder el auto
+        if (car.x > canvas.width) car.x = 0;
+        if (car.x < 0) car.x = canvas.width;
+        if (car.y > canvas.height) car.y = 0;
+        if (car.y < 0) car.y = canvas.height;
+
+        // UI
         document.getElementById('vueltas').innerText = (car.wheelAngleDeg / 360).toFixed(2);
+        document.getElementById('tilt').innerText = Math.round(tiltX);
         volanteDiv.style.transform = `rotate(${car.wheelAngleDeg}deg)`;
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Dibujar el auto
+        
         ctx.save();
         ctx.translate(car.x, car.y);
         ctx.rotate(car.angle);
 
-        // Cuerpo
+        // Chasis
         ctx.fillStyle = "#3366ff";
         ctx.fillRect(-car.height/2, -car.width/2, car.height, car.width);
         
-        // Ruedas traseras (fijas)
-        ctx.fillStyle = "#111";
-        ctx.fillRect(-30, -22, 15, 6);
-        ctx.fillRect(-30, 16, 15, 6);
-
-        // Ruedas delanteras (rotan según el volante y quedan fijas)
+        // Ruedas Delanteras
         const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
-        drawWheel(25, -20, steerAngleRad);
-        drawWheel(25, 20, steerAngleRad);
-
-        ctx.restore();
-    }
-
-    function drawWheel(x, y, angle) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle);
         ctx.fillStyle = "#ff4444";
-        ctx.fillRect(-10, -4, 20, 8); // Rueda inclinada
+        // Izquierda
+        ctx.save();
+        ctx.translate(20, -15); ctx.rotate(steerAngleRad);
+        ctx.fillRect(-8, -3, 16, 6); ctx.restore();
+        // Derecha
+        ctx.save();
+        ctx.translate(20, 15); ctx.rotate(steerAngleRad);
+        ctx.fillRect(-8, -3, 16, 6); ctx.restore();
+
         ctx.restore();
     }
 
@@ -124,7 +154,6 @@
         draw();
         requestAnimationFrame(loop);
     }
-
     loop();
 </script>
 </body>
