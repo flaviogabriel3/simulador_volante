@@ -98,4 +98,140 @@
         const start = (e) => { e.preventDefault(); inputs[key] = true; };
         const end = () => inputs[key] = false;
         ['touchstart', 'mousedown'].forEach(e => btn.addEventListener(e, start));
-        ['touchend', 'mouseup', 'mouseleave'].forEach(e => btn.addEventListener
+        ['touchend', 'mouseup', 'mouseleave'].forEach(e => btn.addEventListener(e, end));
+    };
+    setupButton('btn-left', 'left'); setupButton('btn-right', 'right');
+    setupButton('btn-forward', 'forward'); setupButton('btn-back', 'back');
+    setupButton('btn-brake', 'brake');
+
+    function update() {
+        // Lógica de Volante y Física (Idéntica a la versión anterior)
+        if (inputs.left) car.wheelAngleDeg -= 4.5;
+        if (inputs.right) car.wheelAngleDeg += 4.5;
+        car.wheelAngleDeg = Math.max(-car.maxWheelAngle, Math.min(car.maxWheelAngle, car.wheelAngleDeg));
+
+        if (inputs.brake) car.speed *= 0.85;
+        else if (inputs.forward) car.speed += car.accel;
+        else if (inputs.back) car.speed -= car.accel;
+        else car.speed *= car.friction;
+
+        if (car.speed > car.maxSpeed) car.speed = car.maxSpeed;
+        if (car.speed < -car.maxSpeed/2) car.speed = -car.maxSpeed/2;
+
+        const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
+        if (Math.abs(car.speed) > 0.1) {
+            car.angle += (steerAngleRad * car.speed) / 130;
+        }
+
+        car.x += Math.cos(car.angle) * car.speed;
+        car.y += Math.sin(car.angle) * car.speed;
+        // NOTA: Se eliminó el código que teletransportaba el auto en los bordes.
+
+        // UI Update
+        document.getElementById('vueltas').innerText = (car.wheelAngleDeg / 360).toFixed(2);
+        volanteUI.style.transform = `rotate(${car.wheelAngleDeg}deg)`;
+    }
+
+    function drawGrid() {
+        ctx.save();
+        ctx.strokeStyle = "#ccc"; // Color de las líneas
+        ctx.lineWidth = 1;
+        const gridSize = 100; // Tamaño de cada cuadrado
+
+        // Calculamos dónde empezar a dibujar para que la cuadrícula parezca infinita
+        // basándonos en la posición de la cámara.
+        const startX = Math.floor((car.x - canvas.width/2) / gridSize) * gridSize - gridSize;
+        const endX = startX + canvas.width + gridSize * 2;
+        const startY = Math.floor((car.y - canvas.height/2) / gridSize) * gridSize - gridSize;
+        const endY = startY + canvas.height + gridSize * 2;
+
+        ctx.beginPath();
+        for (let x = startX; x < endX; x += gridSize) {
+            ctx.moveTo(x, startY); ctx.lineTo(x, endY);
+        }
+        for (let y = startY; y < endY; y += gridSize) {
+            ctx.moveTo(startX, y); ctx.lineTo(endX, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawCone(x, y) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "#e67e22"; // Naranja base
+        ctx.beginPath();
+        ctx.arc(0, 0, 12, 0, Math.PI * 2); // Base del cono visto desde arriba
+        ctx.fill();
+        ctx.fillStyle = "#d35400"; // Naranja más oscuro centro
+        ctx.beginPath();
+        ctx.arc(0, 0, 6, 0, Math.PI * 2); // Punta del cono
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function draw() {
+        // 1. Limpiar pantalla (Espacio de pantalla)
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ecf0f1"; // Color de fondo del suelo
+        ctx.fillRect(0,0, canvas.width, canvas.height);
+        
+        ctx.save(); // Guardar estado inicial (sin cámara)
+
+        // 2. APLICAR CÁMARA
+        // Movemos el origen del canvas al centro de la pantalla
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        // Movemos el mundo en dirección opuesta al auto
+        ctx.translate(-car.x, -car.y);
+
+        // --- A partir de aquí, dibujamos en coordenadas del "Mundo" ---
+
+        drawGrid(); // Dibujar suelo de referencia
+
+        // Dibujar Conos
+        cones.forEach(cone => drawCone(cone.x, cone.y));
+
+        // Dibujar Auto
+        ctx.save();
+        ctx.translate(car.x, car.y);
+        ctx.rotate(car.angle);
+        
+        // Sombra simple
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.fillRect(-car.height/2 + 4, -car.width/2 + 4, car.height, car.width);
+
+        // Chasis
+        ctx.fillStyle = "#34495e"; 
+        ctx.fillRect(-car.height/2, -car.width/2, car.height, car.width);
+        // Parabrisas (indica frente)
+        ctx.fillStyle = "#aed6f1";
+        ctx.fillRect(14, -car.width/2 + 5, 18, car.width - 10);
+
+        // Ruedas (con ángulo)
+        const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
+        drawWheel(24, -20, steerAngleRad); drawWheel(24, 20, steerAngleRad);
+        drawWheel(-24, -20, 0); drawWheel(-24, 20, 0); // Traseras fijas
+
+        ctx.restore(); // Fin dibujo auto
+
+        ctx.restore(); // 3. RESTAURAR CÁMARA (Volver a coordenadas de pantalla)
+    }
+
+    function drawWheel(x, y, angle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = "#2c3e50";
+        ctx.fillRect(-11, -5, 22, 10);
+        ctx.restore();
+    }
+
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+    loop();
+</script>
+</body>
+</html>
