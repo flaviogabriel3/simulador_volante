@@ -3,31 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simulador V4 - Cámara y Conos</title>
+    <title>Simulador V5 - Control de Cámara</title>
     <style>
-        body { margin: 0; background: #e0e0e0; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
+        body { margin: 0; background: #ecf0f1; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
         canvas { display: block; }
 
-        /* UI superpuesta (Fija en la pantalla) */
+        /* UI Capas */
         .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .info-panel div { margin-bottom: 5px; font-weight: bold; }
+        /* Panel de Información (Top Izquierda) */
+        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .info-panel div { margin-bottom: 5px; font-weight: bold; font-size: 14px; }
         .val { color: #d35400; }
+        #volante-visual { width: 40px; height: 40px; border: 3px solid #333; border-radius: 50%; margin: 5px auto 0; position: relative; }
+        #volante-visual::after { content: ''; position: absolute; top: 0; left: 50%; width: 3px; height: 50%; background: #c0392b; transform: translateX(-50%); }
 
+        /* Panel de Cámara (Top Derecha) */
+        .camera-panel { position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
+        .btn-cam { width: 45px; height: 45px; background: white; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .btn-cam:active { background: #f0f0f0; transform: scale(0.95); }
+        .btn-fs { width: 120px; font-size: 12px; text-transform: uppercase; }
+
+        /* Controles de Manejo (Abajo) */
         .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; pointer-events: auto; }
-        .control-group { display: flex; gap: 15px; }
-
-        .btn { width: 80px; height: 80px; border-radius: 15px; border: none; font-weight: bold; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; -webkit-tap-highlight-color: transparent; font-size: 14px; text-transform: uppercase; box-shadow: 0 4px #999; transition: all 0.1s; }
+        .control-group { display: flex; gap: 10px; }
+        .btn { width: 75px; height: 75px; border-radius: 15px; border: none; font-weight: bold; color: white; cursor: pointer; user-select: none; font-size: 13px; text-transform: uppercase; box-shadow: 0 4px #999; }
         .btn:active { transform: translateY(4px); box-shadow: 0 0 #999; }
-        
         .btn-steer { background: #7f8c8d; } 
         .btn-drive { background: #27ae60; } 
         .btn-reverse { background: #f39c12; color: #333; } 
-        .btn-brake { background: #c0392b; width: 90px; }
-
-        #volante-visual { width: 50px; height: 50px; border: 3px solid #333; border-radius: 50%; margin: 10px auto 0; position: relative; }
-        #volante-visual::after { content: ''; position: absolute; top: 0; left: 50%; width: 3px; height: 50%; background: #c0392b; transform: translateX(-50%); }
+        .btn-brake { background: #c0392b; width: 85px; }
     </style>
 </head>
 <body>
@@ -37,7 +42,15 @@
     <div class="ui-layer">
         <div class="info-panel">
             <div>Vueltas: <span id="vueltas" class="val">0.00</span></div>
+            <div>Zoom: <span id="zoomVal" class="val">100</span>%</div>
             <div id="volante-visual"></div>
+        </div>
+
+        <div class="camera-panel">
+            <button class="btn-cam btn-fs" id="btn-fullscreen">Pantalla Completa</button>
+            <button class="btn-cam" id="btn-zoom-in" title="Acercar">+</button>
+            <button class="btn-cam" id="btn-zoom-out" title="Alejar">−</button>
+            <button class="btn-cam" id="btn-zoom-reset" title="Restaurar">⟲</button>
         </div>
 
         <div class="controls-container">
@@ -58,7 +71,8 @@
     const ctx = canvas.getContext('2d');
     const volanteUI = document.getElementById('volante-visual');
 
-    // Ajustar canvas al tamaño total de la ventana
+    let cameraScale = 1.0; // Escala de la cámara (1.0 es 100%)
+
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -69,30 +83,20 @@
     const inputs = { left: false, right: false, forward: false, back: false, brake: false };
 
     const car = {
-        x: 0, // Inicio en el centro del mundo virtual
-        y: 0,
-        width: 42,
-        height: 84, // Largo del auto
-        angle: -Math.PI / 2, // Mirando hacia arriba
+        x: 0, y: 0, width: 42, height: 84,
+        angle: -Math.PI / 2,
         wheelAngleDeg: 0,
         maxWheelAngle: 720,
         steeringRatio: 18,
-        speed: 0,
-        maxSpeed: 8,
-        accel: 0.2,
-        friction: 0.97
+        speed: 0, maxSpeed: 7.5, accel: 0.18, friction: 0.97
     };
 
-    // Definición de los conos (Alineados para estacionar)
-    // Distancia entre conos: aprox 2.5 veces el largo del auto (84 * 2.5 = 210)
-    const startX = 200;
-    const startY = -150;
     const cones = [
-        { x: startX, y: startY },
-        { x: startX + 210, y: startY }
+        { x: 300, y: -100 },
+        { x: 520, y: -100 }
     ];
 
-    // Setup de botones (igual que antes)
+    // --- LÓGICA DE BOTONES ---
     const setupButton = (id, key) => {
         const btn = document.getElementById(id);
         const start = (e) => { e.preventDefault(); inputs[key] = true; };
@@ -104,12 +108,28 @@
     setupButton('btn-forward', 'forward'); setupButton('btn-back', 'back');
     setupButton('btn-brake', 'brake');
 
+    // --- LÓGICA DE CÁMARA ---
+    document.getElementById('btn-zoom-in').onclick = () => { if(cameraScale < 2.5) cameraScale += 0.1; };
+    document.getElementById('btn-zoom-out').onclick = () => { if(cameraScale > 0.4) cameraScale -= 0.1; };
+    document.getElementById('btn-zoom-reset').onclick = () => { cameraScale = 1.0; };
+    
+    document.getElementById('btn-fullscreen').onclick = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                alert(`Error al intentar modo pantalla completa: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
     function update() {
-        // Lógica de Volante y Física (Idéntica a la versión anterior)
+        // Manejo de volante
         if (inputs.left) car.wheelAngleDeg -= 4.5;
         if (inputs.right) car.wheelAngleDeg += 4.5;
         car.wheelAngleDeg = Math.max(-car.maxWheelAngle, Math.min(car.maxWheelAngle, car.wheelAngleDeg));
 
+        // Tracción
         if (inputs.brake) car.speed *= 0.85;
         else if (inputs.forward) car.speed += car.accel;
         else if (inputs.back) car.speed -= car.accel;
@@ -125,25 +145,23 @@
 
         car.x += Math.cos(car.angle) * car.speed;
         car.y += Math.sin(car.angle) * car.speed;
-        // NOTA: Se eliminó el código que teletransportaba el auto en los bordes.
 
-        // UI Update
+        // UI
         document.getElementById('vueltas').innerText = (car.wheelAngleDeg / 360).toFixed(2);
+        document.getElementById('zoomVal').innerText = Math.round(cameraScale * 100);
         volanteUI.style.transform = `rotate(${car.wheelAngleDeg}deg)`;
     }
 
     function drawGrid() {
         ctx.save();
-        ctx.strokeStyle = "#ccc"; // Color de las líneas
-        ctx.lineWidth = 1;
-        const gridSize = 100; // Tamaño de cada cuadrado
+        ctx.strokeStyle = "#ccc";
+        ctx.lineWidth = 1 / cameraScale; // Mantener líneas finas al hacer zoom
+        const gridSize = 100;
 
-        // Calculamos dónde empezar a dibujar para que la cuadrícula parezca infinita
-        // basándonos en la posición de la cámara.
-        const startX = Math.floor((car.x - canvas.width/2) / gridSize) * gridSize - gridSize;
-        const endX = startX + canvas.width + gridSize * 2;
-        const startY = Math.floor((car.y - canvas.height/2) / gridSize) * gridSize - gridSize;
-        const endY = startY + canvas.height + gridSize * 2;
+        const startX = Math.floor((car.x - (canvas.width/2)/cameraScale) / gridSize) * gridSize - gridSize;
+        const endX = startX + (canvas.width/cameraScale) + gridSize * 2;
+        const startY = Math.floor((car.y - (canvas.height/2)/cameraScale) / gridSize) * gridSize - gridSize;
+        const endY = startY + (canvas.height/cameraScale) + gridSize * 2;
 
         ctx.beginPath();
         for (let x = startX; x < endX; x += gridSize) {
@@ -159,36 +177,30 @@
     function drawCone(x, y) {
         ctx.save();
         ctx.translate(x, y);
-        ctx.fillStyle = "#e67e22"; // Naranja base
-        ctx.beginPath();
-        ctx.arc(0, 0, 12, 0, Math.PI * 2); // Base del cono visto desde arriba
-        ctx.fill();
-        ctx.fillStyle = "#d35400"; // Naranja más oscuro centro
-        ctx.beginPath();
-        ctx.arc(0, 0, 6, 0, Math.PI * 2); // Punta del cono
-        ctx.fill();
+        ctx.fillStyle = "#e67e22";
+        ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#d35400";
+        ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 
     function draw() {
-        // 1. Limpiar pantalla (Espacio de pantalla)
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#ecf0f1"; // Color de fondo del suelo
+        ctx.fillStyle = "#ecf0f1";
         ctx.fillRect(0,0, canvas.width, canvas.height);
         
-        ctx.save(); // Guardar estado inicial (sin cámara)
+        ctx.save();
 
-        // 2. APLICAR CÁMARA
-        // Movemos el origen del canvas al centro de la pantalla
+        // 1. Centrar en pantalla
         ctx.translate(canvas.width / 2, canvas.height / 2);
-        // Movemos el mundo en dirección opuesta al auto
+        
+        // 2. Aplicar Zoom
+        ctx.scale(cameraScale, cameraScale);
+        
+        // 3. Seguir al auto
         ctx.translate(-car.x, -car.y);
 
-        // --- A partir de aquí, dibujamos en coordenadas del "Mundo" ---
-
-        drawGrid(); // Dibujar suelo de referencia
-
-        // Dibujar Conos
+        drawGrid();
         cones.forEach(cone => drawCone(cone.x, cone.y));
 
         // Dibujar Auto
@@ -196,32 +208,32 @@
         ctx.translate(car.x, car.y);
         ctx.rotate(car.angle);
         
-        // Sombra simple
-        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        // Sombra
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
         ctx.fillRect(-car.height/2 + 4, -car.width/2 + 4, car.height, car.width);
 
         // Chasis
-        ctx.fillStyle = "#34495e"; 
+        ctx.fillStyle = "#2c3e50"; 
         ctx.fillRect(-car.height/2, -car.width/2, car.height, car.width);
-        // Parabrisas (indica frente)
-        ctx.fillStyle = "#aed6f1";
+        
+        // Cristal
+        ctx.fillStyle = "#85c1e9";
         ctx.fillRect(14, -car.width/2 + 5, 18, car.width - 10);
 
-        // Ruedas (con ángulo)
+        // Ruedas
         const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
         drawWheel(24, -20, steerAngleRad); drawWheel(24, 20, steerAngleRad);
-        drawWheel(-24, -20, 0); drawWheel(-24, 20, 0); // Traseras fijas
+        drawWheel(-24, -20, 0); drawWheel(-24, 20, 0);
 
-        ctx.restore(); // Fin dibujo auto
-
-        ctx.restore(); // 3. RESTAURAR CÁMARA (Volver a coordenadas de pantalla)
+        ctx.restore();
+        ctx.restore();
     }
 
     function drawWheel(x, y, angle) {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        ctx.fillStyle = "#2c3e50";
+        ctx.fillStyle = "#1a1a1a";
         ctx.fillRect(-11, -5, 22, 10);
         ctx.restore();
     }
