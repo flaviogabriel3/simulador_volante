@@ -3,34 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simulador V6 - 2.8 Vueltas</title>
+    <title>Simulador V7 - Niveles de Desafío</title>
     <style>
-        body { margin: 0; background: #ecf0f1; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
+        body { margin: 0; background: #ffffff; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
         canvas { display: block; }
         .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        /* Panel de Datos */
-        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 140px; text-align: center; }
+        /* Panel de Información */
+        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 150px; text-align: center; }
         .info-panel div { margin-bottom: 5px; font-weight: bold; font-size: 13px; }
         .val { color: #d35400; font-family: monospace; font-size: 16px; }
         
-        #volante-visual { width: 60px; height: 60px; border: 4px solid #2c3e50; border-radius: 50%; margin: 10px auto 0; position: relative; transition: transform 0.1s linear; }
-        #volante-visual::after { content: ''; position: absolute; top: 0; left: 50%; width: 4px; height: 50%; background: #e74c3c; transform: translateX(-50%); }
+        /* Volante con guía hacia abajo y barra horizontal */
+        #volante-visual { width: 70px; height: 70px; border: 5px solid #2c3e50; border-radius: 50%; margin: 10px auto 0; position: relative; box-sizing: border-box; }
+        /* Barra Horizontal */
+        #volante-visual::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 5px; background: #2c3e50; transform: translateY(-50%); }
+        /* Guía Roja hacia ABAJO */
+        #volante-visual::after { content: ''; position: absolute; top: 50%; left: 50%; width: 5px; height: 50%; background: #e74c3c; transform: translateX(-50%); }
+
+        /* Panel de Niveles */
+        .level-panel { position: absolute; top: 20px; left: 190px; display: flex; gap: 10px; pointer-events: auto; }
+        .btn-lvl { padding: 10px 15px; background: #34495e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-lvl.active { background: #e67e22; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3); }
 
         /* Panel de Cámara */
         .camera-panel { position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
         .btn-cam { width: 44px; height: 44px; background: white; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; }
-        .btn-fs { width: 100px; font-size: 11px; text-transform: uppercase; margin-bottom: 5px; }
 
         /* Controles de Manejo */
         .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 25px; box-sizing: border-box; pointer-events: auto; }
         .control-group { display: flex; gap: 12px; }
-        .btn { width: 75px; height: 75px; border-radius: 15px; border: none; font-weight: bold; color: white; cursor: pointer; user-select: none; font-size: 13px; text-transform: uppercase; box-shadow: 0 4px #7f8c8d; transition: all 0.1s; }
+        .btn { width: 75px; height: 75px; border-radius: 15px; border: none; font-weight: bold; color: white; cursor: pointer; font-size: 13px; text-transform: uppercase; box-shadow: 0 4px #7f8c8d; }
         .btn:active { transform: translateY(4px); box-shadow: 0 0 #7f8c8d; }
         .btn-steer { background: #34495e; } 
-        .btn-drive { background: #27ae60; box-shadow: 0 4px #1e8449; } 
-        .btn-reverse { background: #f1c40f; color: #333; box-shadow: 0 4px #9a7d0a; } 
-        .btn-brake { background: #e74c3c; width: 85px; box-shadow: 0 4px #922b21; }
+        .btn-drive { background: #27ae60; } 
+        .btn-reverse { background: #f1c40f; color: #333; } 
+        .btn-brake { background: #e74c3c; width: 85px; }
     </style>
 </head>
 <body>
@@ -38,17 +46,21 @@
     <canvas id="simCanvas"></canvas>
 
     <div class="ui-layer">
-        <div class="info-panel">
-            <div>VUELTAS: <br><span id="vueltas" class="val">0.00</span></div>
-            <div>GIRO: <span id="angRuedas" class="val">0</span>°</div>
+        <div class="info-panel" id="main-info">
+            <div class="lvl-hide">VUELTAS: <br><span id="vueltas" class="val">0.00</span></div>
+            <div class="lvl-hide">GIRO: <span id="angRuedas" class="val">0</span>°</div>
             <div id="volante-visual"></div>
         </div>
 
+        <div class="level-panel">
+            <button class="btn-lvl active" onclick="setLvl(0)">INICIO</button>
+            <button class="btn-lvl" onclick="setLvl(1)">NIVEL 1</button>
+            <button class="btn-lvl" onclick="setLvl(2)">NIVEL 2</button>
+        </div>
+
         <div class="camera-panel">
-            <button class="btn-cam btn-fs" id="btn-fullscreen">Full Screen</button>
             <button class="btn-cam" id="btn-zoom-in">+</button>
             <button class="btn-cam" id="btn-zoom-out">−</button>
-            <button class="btn-cam" id="btn-zoom-reset">⟲</button>
         </div>
 
         <div class="controls-container">
@@ -68,7 +80,9 @@
     const canvas = document.getElementById('simCanvas');
     const ctx = canvas.getContext('2d');
     const volanteUI = document.getElementById('volante-visual');
+    const infoElements = document.querySelectorAll('.lvl-hide');
 
+    let currentLevel = 0;
     let cameraScale = 1.0;
     const inputs = { left: false, right: false, forward: false, back: false, brake: false };
 
@@ -76,19 +90,29 @@
         x: 0, y: 0, width: 42, height: 84,
         angle: -Math.PI / 2,
         wheelAngleDeg: 0,
-        // Límite para 2.8 vueltas totales (1.4 por lado)
-        maxWheelAngle: 504, 
-        steeringRatio: 15, // Ratio para que las ruedas giren aprox 33° a tope
+        maxWheelAngle: 504, // 1.4 vueltas por lado = 2.8 total
+        steeringRatio: 15,
         speed: 0, maxSpeed: 7, accel: 0.15, friction: 0.98
     };
 
-    const cones = [ { x: 400, y: -50 }, { x: 610, y: -50 } ];
+    const cones = [ { x: 350, y: -80 }, { x: 580, y: -80 } ];
 
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize);
     resize();
 
-    // Setup de inputs
+    // Lógica de Niveles
+    function setLvl(lvl) {
+        currentLevel = lvl;
+        document.querySelectorAll('.btn-lvl').forEach((b, i) => {
+            b.classList.toggle('active', i === lvl);
+        });
+
+        // Nivel 1 y 2 desactivan la info de ángulos
+        const showInfo = (lvl === 0);
+        infoElements.forEach(el => el.style.display = showInfo ? 'block' : 'none');
+    }
+
     const setupButton = (id, key) => {
         const btn = document.getElementById(id);
         const start = (e) => { e.preventDefault(); inputs[key] = true; };
@@ -100,29 +124,18 @@
     setupButton('btn-forward', 'forward'); setupButton('btn-back', 'back');
     setupButton('btn-brake', 'brake');
 
-    // Cámara
-    document.getElementById('btn-zoom-in').onclick = () => { if(cameraScale < 2) cameraScale += 0.1; };
-    document.getElementById('btn-zoom-out').onclick = () => { if(cameraScale > 0.5) cameraScale -= 0.1; };
-    document.getElementById('btn-zoom-reset').onclick = () => cameraScale = 1.0;
-    document.getElementById('btn-fullscreen').onclick = () => {
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-        else document.exitFullscreen();
-    };
+    document.getElementById('btn-zoom-in').onclick = () => cameraScale += 0.1;
+    document.getElementById('btn-zoom-out').onclick = () => cameraScale -= 0.1;
 
     function update() {
-        // Manejo de volante (2.8 vueltas totales)
-        if (inputs.left) car.wheelAngleDeg -= 5;
-        if (inputs.right) car.wheelAngleDeg += 5;
+        if (inputs.left) car.wheelAngleDeg -= 4.8;
+        if (inputs.right) car.wheelAngleDeg += 4.8;
         car.wheelAngleDeg = Math.max(-car.maxWheelAngle, Math.min(car.maxWheelAngle, car.wheelAngleDeg));
 
-        // Tracción y Freno
         if (inputs.brake) car.speed *= 0.88;
         else if (inputs.forward) car.speed += car.accel;
         else if (inputs.back) car.speed -= car.accel;
         else car.speed *= car.friction;
-
-        if (car.speed > car.maxSpeed) car.speed = car.maxSpeed;
-        if (car.speed < -car.maxSpeed/2) car.speed = -car.maxSpeed/2;
 
         const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
         if (Math.abs(car.speed) > 0.1) {
@@ -132,7 +145,6 @@
         car.x += Math.cos(car.angle) * car.speed;
         car.y += Math.sin(car.angle) * car.speed;
 
-        // UI
         document.getElementById('vueltas').innerText = (car.wheelAngleDeg / 360).toFixed(2);
         document.getElementById('angRuedas').innerText = Math.round(car.wheelAngleDeg / car.steeringRatio);
         volanteUI.style.transform = `rotate(${car.wheelAngleDeg}deg)`;
@@ -140,7 +152,7 @@
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#ffffff"; // Fondo blanco puro
+        ctx.fillStyle = "#ffffff";
         ctx.fillRect(0,0, canvas.width, canvas.height);
         
         ctx.save();
@@ -148,8 +160,8 @@
         ctx.scale(cameraScale, cameraScale);
         ctx.translate(-car.x, -car.y);
 
-        // Grid sutil
-        ctx.strokeStyle = "#f0f0f0";
+        // Grid
+        ctx.strokeStyle = "#f2f2f2";
         const gridSize = 100;
         const startX = Math.floor((car.x - (canvas.width/2)/cameraScale) / gridSize) * gridSize - gridSize;
         const endX = startX + (canvas.width/cameraScale) + gridSize * 2;
@@ -170,20 +182,25 @@
         ctx.save();
         ctx.translate(car.x, car.y);
         ctx.rotate(car.angle);
+
+        // Chasis
         ctx.fillStyle = "#2c3e50"; 
         ctx.fillRect(-car.height/2, -car.width/2, car.height, car.width);
         ctx.fillStyle = "#5dade2"; // Parabrisas
         ctx.fillRect(15, -car.width/2 + 5, 15, car.width - 10);
         
-        const sRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
-        const drawW = (tx, ty, rot) => {
-            ctx.save(); ctx.translate(tx, ty); ctx.rotate(rot);
-            ctx.fillStyle = "#333"; ctx.fillRect(-10, -5, 20, 10); ctx.restore();
-        };
-        drawW(25, -20, sRad); drawW(25, 20, sRad); // Delanteras
-        drawW(-25, -20, 0); drawW(-25, 20, 0); // Traseras
-        ctx.restore();
+        // DIBUJAR RUEDAS (Solo si no es Nivel 2)
+        if (currentLevel < 2) {
+            const sRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
+            const drawW = (tx, ty, rot) => {
+                ctx.save(); ctx.translate(tx, ty); ctx.rotate(rot);
+                ctx.fillStyle = "#333"; ctx.fillRect(-10, -5, 20, 10); ctx.restore();
+            };
+            drawW(25, -20, sRad); drawW(25, 20, sRad);
+            drawW(-25, -20, 0); drawW(-25, 20, 0);
+        }
 
+        ctx.restore();
         ctx.restore();
     }
 
