@@ -3,52 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simulador V7 - Niveles de Desafío</title>
+    <title>Simulador Colón - Entre Ríos</title>
     <style>
         body { margin: 0; background: #ffffff; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
         canvas { display: block; }
+        
+        /* Capas de Interfaz */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; transition: opacity 0.5s; }
+        
+        /* Intro */
+        #intro-screen { background: white; }
+        #intro-screen h1 { color: #2c3e50; font-size: 28px; margin-bottom: 5px; }
+        #intro-screen h2 { color: #e67e22; font-size: 18px; margin-top: 0; }
+        
+        /* Cementerio */
+        #cemetery-screen { background: rgba(0, 0, 0, 0.9); color: #ecf0f1; display: none; }
+        #cemetery-screen h1 { font-size: 50px; color: #95a5a6; margin-bottom: 10px; }
+        #cemetery-screen p { font-size: 20px; color: #e74c3c; }
+
+        .btn-start { padding: 15px 30px; font-size: 18px; background: #2c3e50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 20px; pointer-events: auto; }
+
+        /* Paneles de Control */
         .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 12px; width: 120px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .val { color: #d35400; font-family: monospace; font-size: 14px; font-weight: bold; }
         
-        /* Panel de Información */
-        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 150px; text-align: center; }
-        .info-panel div { margin-bottom: 5px; font-weight: bold; font-size: 13px; }
-        .val { color: #d35400; font-family: monospace; font-size: 16px; }
-        
-        /* Volante con guía hacia abajo y barra horizontal */
-        #volante-visual { width: 70px; height: 70px; border: 5px solid #2c3e50; border-radius: 50%; margin: 10px auto 0; position: relative; box-sizing: border-box; }
-        /* Barra Horizontal */
-        #volante-visual::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 5px; background: #2c3e50; transform: translateY(-50%); }
-        /* Guía Roja hacia ABAJO */
-        #volante-visual::after { content: ''; position: absolute; top: 50%; left: 50%; width: 5px; height: 50%; background: #e74c3c; transform: translateX(-50%); }
+        #volante-visual { width: 70px; height: 70px; border: 6px solid #1a1a1a; border-radius: 50%; margin: 10px auto 0; position: relative; box-sizing: border-box; background: #2c3e50; }
+        #volante-visual::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 6px; background: #1a1a1a; transform: translateY(-50%); }
+        #volante-visual::after { content: ''; position: absolute; top: 50%; left: 50%; width: 6px; height: 50%; background: #ff0000; transform: translateX(-50%); }
 
-        /* Panel de Niveles */
-        .level-panel { position: absolute; top: 20px; left: 190px; display: flex; gap: 10px; pointer-events: auto; }
-        .btn-lvl { padding: 10px 15px; background: #34495e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 12px; }
-        .btn-lvl.active { background: #e67e22; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3); }
+        .level-panel { position: absolute; top: 20px; left: 160px; display: flex; gap: 5px; pointer-events: auto; }
+        .btn-lvl { padding: 8px 12px; background: #222; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px; }
+        .btn-lvl.active { background: #e67e22; }
 
-        /* Panel de Cámara */
-        .camera-panel { position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
-        .btn-cam { width: 44px; height: 44px; background: white; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; }
-
-        /* Controles de Manejo */
-        .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 25px; box-sizing: border-box; pointer-events: auto; }
-        .control-group { display: flex; gap: 12px; }
-        .btn { width: 75px; height: 75px; border-radius: 15px; border: none; font-weight: bold; color: white; cursor: pointer; font-size: 13px; text-transform: uppercase; box-shadow: 0 4px #7f8c8d; }
-        .btn:active { transform: translateY(4px); box-shadow: 0 0 #7f8c8d; }
-        .btn-steer { background: #34495e; } 
-        .btn-drive { background: #27ae60; } 
+        .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: auto; }
+        .control-group { display: flex; gap: 10px; }
+        .btn { width: 70px; height: 70px; border-radius: 12px; border: none; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 4px #555; }
+        .btn:active { transform: translateY(2px); box-shadow: 0 2px #555; }
+        .btn-steer { background: #444; } 
+        .btn-drive { background: #2ecc71; } 
         .btn-reverse { background: #f1c40f; color: #333; } 
-        .btn-brake { background: #e74c3c; width: 85px; }
+        .btn-brake { background: #e74c3c; width: 80px; }
     </style>
 </head>
 <body>
 
+    <div id="intro-screen" class="overlay">
+        <h1>Primer ejercicio: Slalom</h1>
+        <h2>Colón, Entre Ríos</h2>
+        <p><i>"Si le erro voy al cementerio"</i></p>
+        <button class="btn-start" onclick="startGame()">INICIAR EJERCICIO</button>
+    </div>
+
+    <div id="cemetery-screen" class="overlay">
+        <h1>🪦</h1>
+        <h1>AL CEMENTERIO</h1>
+        <p>Tocaste un cono. Ejercicio fallido.</p>
+        <button class="btn-start" onclick="resetGame()">REINTENTAR</button>
+    </div>
+
     <canvas id="simCanvas"></canvas>
 
-    <div class="ui-layer">
-        <div class="info-panel" id="main-info">
+    <div class="ui-layer" id="game-ui" style="display:none;">
+        <div class="info-panel">
             <div class="lvl-hide">VUELTAS: <br><span id="vueltas" class="val">0.00</span></div>
-            <div class="lvl-hide">GIRO: <span id="angRuedas" class="val">0</span>°</div>
             <div id="volante-visual"></div>
         </div>
 
@@ -56,11 +74,6 @@
             <button class="btn-lvl active" onclick="setLvl(0)">INICIO</button>
             <button class="btn-lvl" onclick="setLvl(1)">NIVEL 1</button>
             <button class="btn-lvl" onclick="setLvl(2)">NIVEL 2</button>
-        </div>
-
-        <div class="camera-panel">
-            <button class="btn-cam" id="btn-zoom-in">+</button>
-            <button class="btn-cam" id="btn-zoom-out">−</button>
         </div>
 
         <div class="controls-container">
@@ -79,75 +92,105 @@
 <script>
     const canvas = document.getElementById('simCanvas');
     const ctx = canvas.getContext('2d');
-    const volanteUI = document.getElementById('volante-visual');
-    const infoElements = document.querySelectorAll('.lvl-hide');
+    const M_TO_PX = 35; // Escala
+    const STREET_W = 7 * M_TO_PX;
+    const STREET_L = 90 * M_TO_PX;
 
+    let isGameOver = false;
     let currentLevel = 0;
-    let cameraScale = 1.0;
+    let cameraScale = 0.7;
     const inputs = { left: false, right: false, forward: false, back: false, brake: false };
 
     const car = {
-        x: 0, y: 0, width: 42, height: 84,
-        angle: -Math.PI / 2,
-        wheelAngleDeg: 0,
-        maxWheelAngle: 504, // 1.4 vueltas por lado = 2.8 total
-        steeringRatio: 15,
-        speed: 0, maxSpeed: 7, accel: 0.15, friction: 0.98
+        x: 0, y: 0, width: 1.8 * M_TO_PX, height: 4.5 * M_TO_PX,
+        angle: 0, wheelAngleDeg: 0, maxWheelAngle: 504,
+        steeringRatio: 16, speed: 0, maxSpeed: 6, accel: 0.12, friction: 0.98
     };
 
-    const cones = [ { x: 350, y: -80 }, { x: 580, y: -80 } ];
-
-    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-    window.addEventListener('resize', resize);
-    resize();
-
-    // Lógica de Niveles
-    function setLvl(lvl) {
-        currentLevel = lvl;
-        document.querySelectorAll('.btn-lvl').forEach((b, i) => {
-            b.classList.toggle('active', i === lvl);
-        });
-
-        // Nivel 1 y 2 desactivan la info de ángulos
-        const showInfo = (lvl === 0);
-        infoElements.forEach(el => el.style.display = showInfo ? 'block' : 'none');
+    const cones = [];
+    function initCones() {
+        cones.length = 0;
+        const firstX = 25 * M_TO_PX;
+        const lastX = 85 * M_TO_PX;
+        const spacing = (lastX - firstX) / 4;
+        for(let i=0; i<5; i++) {
+            cones.push({ x: firstX + (i * spacing), y: 3.5 * M_TO_PX, r: 8 });
+        }
     }
 
-    const setupButton = (id, key) => {
-        const btn = document.getElementById(id);
-        const start = (e) => { e.preventDefault(); inputs[key] = true; };
-        const end = () => inputs[key] = false;
-        ['touchstart', 'mousedown'].forEach(e => btn.addEventListener(e, start));
-        ['touchend', 'mouseup', 'mouseleave'].forEach(e => btn.addEventListener(e, end));
-    };
-    setupButton('btn-left', 'left'); setupButton('btn-right', 'right');
-    setupButton('btn-forward', 'forward'); setupButton('btn-back', 'back');
-    setupButton('btn-brake', 'brake');
+    function startGame() {
+        document.getElementById('intro-screen').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        resetGame();
+    }
 
-    document.getElementById('btn-zoom-in').onclick = () => cameraScale += 0.1;
-    document.getElementById('btn-zoom-out').onclick = () => cameraScale -= 0.1;
+    function resetGame() {
+        isGameOver = false;
+        car.x = 10 * M_TO_PX;
+        car.y = 5.5 * M_TO_PX;
+        car.speed = 0;
+        car.angle = 0;
+        car.wheelAngleDeg = 0;
+        initCones();
+        document.getElementById('cemetery-screen').style.display = 'none';
+    }
+
+    function gameOver() {
+        isGameOver = true;
+        document.getElementById('cemetery-screen').style.display = 'flex';
+    }
+
+    function setLvl(lvl) {
+        currentLevel = lvl;
+        document.querySelectorAll('.btn-lvl').forEach((b, i) => b.classList.toggle('active', i === lvl));
+        document.querySelectorAll('.lvl-hide').forEach(el => el.style.display = (lvl === 0) ? 'block' : 'none');
+    }
+
+    // Inputs
+    const setupBtn = (id, k) => {
+        const b = document.getElementById(id);
+        const s = (e) => { e.preventDefault(); inputs[k] = true; };
+        const f = () => inputs[k] = false;
+        ['touchstart','mousedown'].forEach(e => b.addEventListener(e, s));
+        ['touchend','mouseup','mouseleave'].forEach(e => b.addEventListener(e, f));
+    };
+    setupBtn('btn-left','left'); setupBtn('btn-right','right');
+    setupBtn('btn-forward','forward'); setupBtn('btn-back','back');
+    setupBtn('btn-brake','brake');
 
     function update() {
-        if (inputs.left) car.wheelAngleDeg -= 4.8;
-        if (inputs.right) car.wheelAngleDeg += 4.8;
+        if(isGameOver) return;
+
+        // Movimiento
+        if (inputs.left) car.wheelAngleDeg -= 4.5;
+        if (inputs.right) car.wheelAngleDeg += 4.5;
         car.wheelAngleDeg = Math.max(-car.maxWheelAngle, Math.min(car.maxWheelAngle, car.wheelAngleDeg));
 
-        if (inputs.brake) car.speed *= 0.88;
+        if (inputs.brake) car.speed *= 0.85;
         else if (inputs.forward) car.speed += car.accel;
         else if (inputs.back) car.speed -= car.accel;
         else car.speed *= car.friction;
 
-        const steerAngleRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
+        const steerRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
         if (Math.abs(car.speed) > 0.1) {
-            car.angle += (steerAngleRad * car.speed) / 140;
+            car.angle += (steerRad * car.speed) / 180;
         }
 
         car.x += Math.cos(car.angle) * car.speed;
         car.y += Math.sin(car.angle) * car.speed;
 
+        // Detección de colisión con conos
+        cones.forEach(cone => {
+            const dx = car.x - cone.x;
+            const dy = car.y - cone.y;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            if(distance < 25) { // Si el centro del auto está cerca del cono
+                gameOver();
+            }
+        });
+
         document.getElementById('vueltas').innerText = (car.wheelAngleDeg / 360).toFixed(2);
-        document.getElementById('angRuedas').innerText = Math.round(car.wheelAngleDeg / car.steeringRatio);
-        volanteUI.style.transform = `rotate(${car.wheelAngleDeg}deg)`;
+        document.getElementById('volante-visual').style.transform = `rotate(${car.wheelAngleDeg}deg)`;
     }
 
     function draw() {
@@ -160,21 +203,15 @@
         ctx.scale(cameraScale, cameraScale);
         ctx.translate(-car.x, -car.y);
 
-        // Grid
-        ctx.strokeStyle = "#f2f2f2";
-        const gridSize = 100;
-        const startX = Math.floor((car.x - (canvas.width/2)/cameraScale) / gridSize) * gridSize - gridSize;
-        const endX = startX + (canvas.width/cameraScale) + gridSize * 2;
-        const startY = Math.floor((car.y - (canvas.height/2)/cameraScale) / gridSize) * gridSize - gridSize;
-        const endY = startY + (canvas.height/cameraScale) + gridSize * 2;
-        ctx.beginPath();
-        for(let x=startX; x<endX; x+=gridSize){ ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
-        for(let y=startY; y<endY; y+=gridSize){ ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
-        ctx.stroke();
+        // Calle
+        ctx.fillStyle = "#f5f5f5";
+        ctx.fillRect(0, 0, STREET_L, STREET_W);
+        ctx.strokeStyle = "#ccc"; ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, STREET_L, STREET_W);
 
         // Conos
         cones.forEach(c => {
-            ctx.fillStyle = "#e67e22"; ctx.beginPath(); ctx.arc(c.x, c.y, 12, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#e67e22"; ctx.beginPath(); ctx.arc(c.x, c.y, 10, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, Math.PI*2); ctx.fill();
         });
 
@@ -182,29 +219,30 @@
         ctx.save();
         ctx.translate(car.x, car.y);
         ctx.rotate(car.angle);
-
-        // Chasis
         ctx.fillStyle = "#2c3e50"; 
         ctx.fillRect(-car.height/2, -car.width/2, car.height, car.width);
-        ctx.fillStyle = "#5dade2"; // Parabrisas
-        ctx.fillRect(15, -car.width/2 + 5, 15, car.width - 10);
         
-        // DIBUJAR RUEDAS (Solo si no es Nivel 2)
         if (currentLevel < 2) {
             const sRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
             const drawW = (tx, ty, rot) => {
                 ctx.save(); ctx.translate(tx, ty); ctx.rotate(rot);
-                ctx.fillStyle = "#333"; ctx.fillRect(-10, -5, 20, 10); ctx.restore();
+                ctx.fillStyle = "#111"; ctx.fillRect(-12, -6, 24, 12); ctx.restore();
             };
-            drawW(25, -20, sRad); drawW(25, 20, sRad);
-            drawW(-25, -20, 0); drawW(-25, 20, 0);
+            drawW(car.height/2.5, -car.width/2, sRad); drawW(car.height/2.5, car.width/2, sRad);
+            drawW(-car.height/2.5, -car.width/2, 0); drawW(-car.height/2.5, car.width/2, 0);
         }
-
         ctx.restore();
         ctx.restore();
     }
 
-    function loop() { update(); draw(); requestAnimationFrame(loop); }
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     loop();
 </script>
 </body>
