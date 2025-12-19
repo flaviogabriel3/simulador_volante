@@ -3,71 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simulador Colón - Volante Pro</title>
+    <title>Simulador Colón - Teclado y Zoom</title>
     <style>
         body { margin: 0; background: #ffffff; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
         canvas { display: block; }
         
-        /* Pantallas de estado */
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; background: white; }
-        #cemetery-screen { background: rgba(0, 0, 0, 0.95); color: #ecf0f1; display: none; }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; }
+        #intro-screen { background: white; }
+        #cemetery-screen { background: rgba(0, 0, 0, 0.9); color: #ecf0f1; display: none; }
         .btn-start { padding: 15px 30px; font-size: 18px; background: #2c3e50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 20px; pointer-events: auto; }
 
-        /* UI de Juego */
         .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 12px; width: 120px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .val { color: #d35400; font-family: monospace; font-size: 14px; font-weight: bold; }
         
-        /* Volante Central Gigante */
-        .wheel-container { 
-            position: absolute; 
-            bottom: 40px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            pointer-events: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+        #volante-visual { width: 70px; height: 70px; border: 6px solid #1a1a1a; border-radius: 50%; margin: 10px auto 0; position: relative; box-sizing: border-box; background: #2c3e50; }
+        #volante-visual::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 6px; background: #1a1a1a; transform: translateY(-50%); }
+        #volante-visual::after { content: ''; position: absolute; top: 50%; left: 50%; width: 6px; height: 50%; background: #ff0000; transform: translateX(-50%); }
 
-        #volante-visual { 
-            width: 180px; 
-            height: 180px; 
-            border: 12px solid #1a1a1a; 
-            border-radius: 50%; 
-            position: relative; 
-            box-sizing: border-box; 
-            background: rgba(44, 62, 80, 0.8);
-            cursor: grab;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            touch-action: none;
-        }
-        #volante-visual:active { cursor: grabbing; }
-
-        /* Barra horizontal */
-        #volante-visual::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 10px; background: #1a1a1a; transform: translateY(-50%); }
-        /* Punto superior */
-        #volante-visual::after { 
-            content: ''; 
-            position: absolute; 
-            top: 5px; 
-            left: 50%; 
-            width: 14px; 
-            height: 14px; 
-            background: #e74c3c; 
-            border-radius: 50%; 
-            transform: translateX(-50%); 
-        }
-
-        .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 12px; min-width: 100px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .val { color: #d35400; font-family: monospace; font-size: 16px; font-weight: bold; }
-
-        .level-panel { position: absolute; top: 20px; right: 80px; display: flex; gap: 5px; pointer-events: auto; }
-        .btn-lvl { padding: 10px 15px; background: #222; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px; }
+        .level-panel { position: absolute; top: 20px; left: 160px; display: flex; gap: 5px; pointer-events: auto; }
+        .btn-lvl { padding: 8px 12px; background: #222; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px; }
         .btn-lvl.active { background: #e67e22; }
 
-        .camera-panel { position: absolute; top: 100px; right: 20px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
-        .btn-cam { width: 45px; height: 45px; background: white; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 20px; }
+        .camera-panel { position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+        .btn-cam { width: 45px; height: 45px; background: white; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* Pedales laterales */
-        .pedals { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; }
-        .pedal-btn { width: 80px; height: 120px; border-radius: 10px; border: none; color: white; font-weight: bold; pointer-events: auto; box-shadow: 0 5px #333; }
-        .pedal-btn:
+        .controls-container { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: auto; }
+        .control-group { display: flex; gap: 10px; }
+        .btn { width: 70px; height: 70px; border-radius: 12px; border: none; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 4px #555; user-select: none; }
+        .btn:active { transform: translateY(2px); box-shadow: 0 2px #555; }
+        .btn-steer { background: #444; } 
+        .btn-drive { background: #2ecc71; } 
+        .btn-reverse { background: #f1c40f; color: #333; } 
+        .btn-brake { background: #e74c3c; width: 80px; }
+    </style>
+</head>
+<body>
+
+    <div id="intro-screen" class="overlay">
+        <h1>Primer ejercicio: Slalom</h1>
+        <h2>Colón, Entre Ríos</h2>
+        <p><i>"Si le erro voy al cementerio"</i></p>
+        <p style="font-size: 12px; color: #666;">Usa W,A,S,D o Flechas para conducir</p>
+        <button class="btn-start" onclick="startGame()">INICIAR</button>
+    </div>
+
+    <div id="cemetery-screen" class="overlay">
+        <h1>🪦</h1>
+        <h1>AL CEMENTERIO</h1>
+        <button class="btn-start" onclick="resetGame()">REINTENTAR</button>
+    </div>
+
+    <canvas id="simCanvas"></canvas>
+
+    <div class="ui-layer" id="game-ui" style="display:none;">
+        <div class="info-panel">
+            <div class="lvl-hide">VUELTAS: <br><span id="vueltas" class="val">0.00</span></div>
+            <div id="volante-visual"></div>
+        </div>
+
+        <div class="level-panel">
+            <button class="btn-lvl active" onclick="setLvl(0)">INICIO</button>
+            <button class="btn-lvl" onclick="setLvl(1)">NIVEL 1</button>
+            <button class="btn-lvl" onclick="setLvl(2)">NIVEL 2</button>
+        </div>
+
+        <div class="camera-panel">
+            <button class="btn-cam" id="zoom-in">+</button>
+            <button class="btn-cam" id="zoom-out">−</button>
+            <button class="btn-cam" id="zoom-res">⟲</button>
+        </div>
+
+        <div class="controls-container">
+            <div class="control-group">
+                <button class="btn btn-steer" id="btn-left">Izq</button>
+                <button class="btn btn-steer" id="btn-right">Der</button>
+            </div>
+            <div class="control-group">
+                <button class="btn btn-brake" id="btn-brake">Freno</button>
+                <button class="btn btn-reverse" id="btn-back">Rev</button>
+                <button class="btn btn-drive" id="btn-forward">D</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const M_TO_PX = 35;
+
+    let isGameOver = false;
+    let currentLevel = 0;
+    let cameraScale = 0.8;
+    
+    // Estado de inputs unificado (Teclado + Pantalla)
+    const inputs = { left: false, right: false, forward: false, back: false, brake: false };
+
+    const car = {
+        x: 0, y: 0, width: 1.8 * M_TO_PX, height: 4.5 * M_TO_PX,
+        angle: 0, wheelAngleDeg: 0, maxWheelAngle: 504,
+        steeringRatio: 16, speed: 0, maxSpeed: 6, accel: 0.15, friction: 0.98
+    };
+
+    const cones = [];
+    function initCones() {
+        cones.length = 0;
+        for(let i=0; i<5; i++) {
+            cones.push({ x: (25 + i * 15) * M_TO_PX, y: 0 });
+        }
+    }
+
+    // --- MANEJO DE TECLADO ---
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'w' || e.key === 'ArrowUp') inputs.forward = true;
+        if (e.key === 's' || e.key === 'ArrowDown') inputs.back = true;
+        if (e.key === 'a' || e.key === 'ArrowLeft') inputs.left = true;
+        if (e.key === 'd' || e.key === 'ArrowRight') inputs.right = true;
+        if (e.key === ' ') inputs.brake = true;
+        if (e.key === '+') cameraScale += 0.05;
+        if (e.key === '-') cameraScale -= 0.05;
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'w' || e.key === 'ArrowUp') inputs.forward = false;
+        if (e.key === 's' || e.key === 'ArrowDown') inputs.back = false;
+        if (e.key === 'a' || e.key === 'ArrowLeft') inputs.left = false;
+        if (e.key === 'd' || e.key === 'ArrowRight') inputs.right = false;
+        if (e.key === ' ') inputs.brake = false;
+    });
+
+    // --- MANEJO DE ZOOM ---
+    document.getElementById('zoom-in').onclick = () => cameraScale += 0.1;
+    document.getElementById('zoom-out').onclick = () => cameraScale -= 0.1;
+    document.getElementById('zoom-res').onclick = () => cameraScale = 0.8;
+
+    function startGame() {
+        document.getElementById('intro-screen').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        resetGame();
+    }
+
+    function resetGame() {
+        isGameOver = false;
+        car.x = 0; car.y = 100; car.speed = 0; car.angle = 0; car.wheelAngleDeg = 0;
+        initCones();
+        document.getElementById('cemetery-screen').style.display = 'none';
+    }
+
+    function setLvl(lvl) {
+        currentLevel = lvl;
+        document.querySelectorAll('.btn-lvl').forEach((b, i) => b.classList.toggle('active', i === lvl));
+        document.querySelectorAll('.lvl-hide').forEach(el => el.style.display = (lvl === 0) ? 'block' : 'none');
+    }
+
+    const setupBtn = (id, k) => {
+        const b = document.getElementById(id);
+        const s = (e) => { e.preventDefault(); inputs[k] = true; };
+        const f = () => inputs[k] = false;
+        ['touchstart','mousedown'].forEach(e => b.addEventListener(e, s));
+        ['touchend','mouseup','mouseleave'].forEach(e => b.addEventListener(e, f));
+    };
+    setupBtn('btn-left','left'); setupBtn('btn-right','right');
+    setupBtn('btn-forward','forward'); setupBtn('btn-back','back');
+    setupBtn('btn-brake','brake');
+
+    function update() {
+        if(isGameOver) return;
+
+        if (inputs.left) car.wheelAngleDeg -= 4.5;
+        if (inputs.right) car.wheelAngleDeg += 4.5;
+        car.wheelAngleDeg = Math.max(-car.maxWheelAngle, Math.min(car.maxWheelAngle, car.wheelAngleDeg));
+
+        if (inputs.brake) car.speed *= 0.85;
+        else if (inputs.forward) car.speed += car.accel;
+        else if (inputs.back) car.speed -= car.accel;
+        else car.speed *= car.friction;
+
+        const steerRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
+        if (Math.abs(car.speed) > 0.1) {
+            car.angle += (steerRad * car.speed) / 180;
+        }
+
+        car.x += Math.cos(car.angle) * car.speed;
+        car.y += Math.sin(car.angle) * car.speed;
+
+        cones.forEach(cone => {
+            const dx = car.x - cone.x;
+            const dy = car.y - cone.y;
+            if(Math.sqrt(dx*dx + dy*dy) < 22) { isGameOver = true; document.getElementById('cemetery-screen').style.display = 'flex'; }
+        });
+
+        document.getElementById('vueltas').innerText = (car.wheelAngleDeg / 360).toFixed(2);
+        document.getElementById('volante-visual').style.transform = `rotate(${car.wheelAngleDeg}deg)`;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width/2, canvas.height/2);
+        ctx.scale(cameraScale, cameraScale);
+        ctx.translate(-car.x, -car.y);
+
+        // Cuadrícula Infinita
+        ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
+        const grid = 100;
+        const startX = Math.floor((car.x - canvas.width/cameraScale)/grid)*grid;
+        const startY = Math.floor((car.y - canvas.height/cameraScale)/grid)*grid;
+        ctx.beginPath();
+        for(let x=startX; x < startX + (canvas.width/cameraScale)*2.5; x+=grid) { ctx.moveTo(x, startY); ctx.lineTo(x, startY + (canvas.height/cameraScale)*2.5); }
+        for(let y=startY; y < startY + (canvas.height/cameraScale)*2.5; y+=grid) { ctx.moveTo(startX, y); ctx.lineTo(startX + (canvas.width/cameraScale)*2.5, y); }
+        ctx.stroke();
+
+        // Conos
+        cones.forEach(c => {
+            ctx.fillStyle = "#e67e22"; ctx.beginPath(); ctx.arc(c.x, c.y, 10, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, Math.PI*2); ctx.fill();
+        });
+
+        // Auto
+        ctx.save();
+        ctx.translate(car.x, car.y); ctx.rotate(car.angle);
+        ctx.fillStyle = "#2c3e50"; ctx.fillRect(-car.height/2, -car.width/2, car.height, car.width);
+        ctx.fillStyle = "#5dade2"; ctx.fillRect(10, -car.width/2 + 5, 15, car.width - 10);
+        
+        if (currentLevel < 2) {
+            const sRad = (car.wheelAngleDeg/16) * (Math.PI/180);
+            const drawW = (tx, ty, rot) => {
+                ctx.save(); ctx.translate(tx, ty); ctx.rotate(rot);
+                ctx.fillStyle = "#111"; ctx.fillRect(-12, -6, 24, 12); ctx.restore();
+            };
+            drawW(car.height/2.5, -car.width/2, sRad); drawW(car.height/2.5, car.width/2, sRad);
+            drawW(-car.height/2.5, -car.width/2, 0); drawW(-car.height/2.5, car.width/2, 0);
+        }
+        ctx.restore();
+        ctx.restore();
+    }
+
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    loop();
+</script>
+</body>
+</html>
