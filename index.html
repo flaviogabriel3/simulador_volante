@@ -290,7 +290,7 @@
             ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, startY + (canvas.height/cameraScale)*2.5); ctx.stroke();
         }
         for(let y=startY; y < startY + (canvas.height/cameraScale)*2.5; y+=grid) {
-            ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(x, startX + (canvas.width/cameraScale)*2.5); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(y, startX + (canvas.width/cameraScale)*2.5); ctx.stroke();
         }
 
         cones.forEach(c => {
@@ -322,4 +322,5 @@
 </script>
 </body>
 </html>
+
 
