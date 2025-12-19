@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simulador Colón - Volante Pro</title>
+    <title>Simulador V13 - Volante W</title>
     <style>
         body { margin: 0; background: #ffffff; color: #333; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; }
         canvas { display: block; }
@@ -16,46 +16,44 @@
         /* UI de Juego */
         .ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        /* Volante Central Gigante */
+        /* --- NUEVO ESTILO DEL VOLANTE CENTRAL GIGANTE --- */
         .wheel-container { 
-            position: absolute; 
-            bottom: 40px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            pointer-events: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); 
+            pointer-events: auto; display: flex; flex-direction: column; align-items: center;
         }
-
         #volante-visual { 
-            width: 180px; 
-            height: 180px; 
-            border: 12px solid #1a1a1a; 
-            border-radius: 50%; 
-            position: relative; 
-            box-sizing: border-box; 
-            background: rgba(44, 62, 80, 0.8);
-            cursor: grab;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            touch-action: none;
+            width: 200px; height: 200px; /* Un poco más grande */
+            border: 14px solid #1a1a1a; border-radius: 50%; position: relative; 
+            box-sizing: border-box; background: rgba(44, 62, 80, 0.9); cursor: grab; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4); touch-action: none;
+            /* Centrar la W */
+            display: flex; justify-content: center; align-items: center;
+            color: #ecf0f1; font-size: 40px; font-weight: 900; font-family: sans-serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
         #volante-visual:active { cursor: grabbing; }
-
-        /* Barra horizontal */
-        #volante-visual::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 10px; background: #1a1a1a; transform: translateY(-50%); }
-        /* Punto superior */
+        
+        /* Barra horizontal (::before) */
+        #volante-visual::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 14px; background: #1a1a1a; transform: translateY(-50%); z-index: -1; }
+        
+        /* Punto rojo superior (::after) */
         #volante-visual::after { 
-            content: ''; 
-            position: absolute; 
-            top: 5px; 
-            left: 50%; 
-            width: 14px; 
-            height: 14px; 
-            background: #e74c3c; 
-            border-radius: 50%; 
-            transform: translateX(-50%); 
+            content: ''; position: absolute; top: 5px; left: 50%; width: 16px; height: 16px; 
+            background: #e74c3c; border-radius: 50%; transform: translateX(-50%); box-shadow: 0 0 10px #e74c3c;
         }
+        
+        /* NUEVO EJE VERTICAL HASTA ABAJO (span interno) */
+        .vertical-spoke {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px; /* Mismo grosor que el borde */
+            height: 50%; /* Desde el centro hasta abajo */
+            background: #1a1a1a;
+            transform: translateX(-50%);
+            z-index: -1; /* Detrás de la W */
+        }
+        /* -------------------------------------------------- */
 
         .info-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 12px; min-width: 100px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .val { color: #d35400; font-family: monospace; font-size: 16px; font-weight: bold; }
@@ -67,7 +65,6 @@
         .camera-panel { position: absolute; top: 100px; right: 20px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
         .btn-cam { width: 45px; height: 45px; background: white; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 20px; }
 
-        /* Pedales laterales */
         .pedals { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; }
         .pedal-btn { width: 80px; height: 120px; border-radius: 10px; border: none; color: white; font-weight: bold; pointer-events: auto; box-shadow: 0 5px #333; }
         .pedal-btn:active { transform: translateY(4px); box-shadow: 0 1px #333; }
@@ -79,16 +76,16 @@
 <body>
 
     <div id="intro-screen" class="overlay">
-        <h1>Primer ejercicio: Slalom</h1>
+        <h1>Ejercicio: Estacionamiento</h1>
         <h2>Colón, Entre Ríos</h2>
-        <p><i>"Si le erro voy al cementerio"</i></p>
-        <p style="font-size: 14px;">Gira el volante con el mouse o usa A/D</p>
+        <p>Intenta estacionar entre los 4 conos sin tocarlos.</p>
+        <p style="font-size: 14px;">Arrastra el volante para girar.</p>
         <button class="btn-start" onclick="startGame()">INICIAR</button>
     </div>
 
     <div id="cemetery-screen" class="overlay">
         <h1>🪦</h1>
-        <h1 style="color: #e74c3c;">AL CEMENTERIO</h1>
+        <h1 style="color: #e74c3c;">CHOCASTE EL CONO</h1>
         <button class="btn-start" onclick="resetGame()">REINTENTAR</button>
     </div>
 
@@ -108,10 +105,14 @@
         <div class="camera-panel">
             <button class="btn-cam" onclick="cameraScale += 0.1">+</button>
             <button class="btn-cam" onclick="cameraScale -= 0.1">−</button>
+            <button class="btn-cam" onclick="cameraScale = 0.8">⟲</button>
         </div>
 
         <div class="wheel-container">
-            <div id="volante-visual"></div>
+            <div id="volante-visual">
+                W
+                <span class="vertical-spoke"></span>
+            </div>
         </div>
 
         <div class="pedals">
@@ -137,14 +138,20 @@
 
     const car = {
         x: 0, y: 0, width: 1.8 * M_TO_PX, height: 4.5 * M_TO_PX,
-        angle: 0, wheelAngleDeg: 0, maxWheelAngle: 504,
-        steeringRatio: 16, speed: 0, maxSpeed: 6, accel: 0.15, friction: 0.98
+        angle: -Math.PI / 2, 
+        wheelAngleDeg: 0, maxWheelAngle: 504,
+        steeringRatio: 16, speed: 0, maxSpeed: 5, accel: 0.12, friction: 0.98
     };
 
     const cones = [];
     function initCones() {
         cones.length = 0;
-        for(let i=0; i<5; i++) { cones.push({ x: (30 + i * 20) * M_TO_PX, y: 0 }); }
+        const halfW = (3 * M_TO_PX) / 2;
+        const halfL = (6 * M_TO_PX) / 2;
+        cones.push({ x: -halfW, y: -halfL });
+        cones.push({ x: halfW, y: -halfL });
+        cones.push({ x: -halfW, y: halfL });
+        cones.push({ x: halfW, y: halfL });
     }
 
     // --- LÓGICA DE VOLANTE CON MOUSE ---
@@ -152,9 +159,9 @@
     let lastAngle = 0;
 
     volanteUI.addEventListener('mousedown', startRotate);
-    volanteUI.addEventListener('touchstart', startRotate);
+    volanteUI.addEventListener('touchstart', startRotate, {passive: false});
     window.addEventListener('mousemove', rotate);
-    window.addEventListener('touchmove', rotate);
+    window.addEventListener('touchmove', rotate, {passive: false});
     window.addEventListener('mouseup', stopRotate);
     window.addEventListener('touchend', stopRotate);
 
@@ -172,18 +179,14 @@
         lastAngle = getMouseAngle(e);
         e.preventDefault();
     }
-
     function stopRotate() { isDragging = false; }
-
     function rotate(e) {
         if (!isDragging) return;
+        e.preventDefault();
         const currentAngle = getMouseAngle(e);
         let delta = currentAngle - lastAngle;
-
-        // Corregir salto de ángulo de Math.atan2
         if (delta > Math.PI) delta -= Math.PI * 2;
         if (delta < -Math.PI) delta += Math.PI * 2;
-
         car.wheelAngleDeg += delta * (180 / Math.PI);
         lastAngle = currentAngle;
     }
@@ -212,7 +215,10 @@
 
     function resetGame() {
         isGameOver = false;
-        car.x = 0; car.y = 150; car.speed = 0; car.angle = 0; car.wheelAngleDeg = 0;
+        car.x = 120 * M_TO_PX / 35; 
+        car.y = 200 * M_TO_PX / 35; 
+        car.angle = -Math.PI / 2;
+        car.speed = 0; car.wheelAngleDeg = 0;
         initCones();
         document.getElementById('cemetery-screen').style.display = 'none';
     }
@@ -235,13 +241,11 @@
     function update() {
         if(isGameOver) return;
 
-        // Giro por teclado si no se está arrastrando el mouse
         if (!isDragging) {
             if (inputs.left) car.wheelAngleDeg -= 4.5;
             if (inputs.right) car.wheelAngleDeg += 4.5;
         }
 
-        // Límite de 2.8 vueltas (504 grados por lado)
         car.wheelAngleDeg = Math.max(-car.maxWheelAngle, Math.min(car.maxWheelAngle, car.wheelAngleDeg));
 
         if (inputs.brake) car.speed *= 0.85;
@@ -251,7 +255,8 @@
 
         const steerRad = (car.wheelAngleDeg / car.steeringRatio) * (Math.PI / 180);
         if (Math.abs(car.speed) > 0.1) {
-            car.angle += (steerRad * car.speed) / 180;
+            const dir = car.speed > 0 ? 1 : -1;
+            car.angle += (steerRad * car.speed * dir) / 180;
         }
 
         car.x += Math.cos(car.angle) * car.speed;
@@ -260,7 +265,7 @@
         cones.forEach(cone => {
             const dx = car.x - cone.x;
             const dy = car.y - cone.y;
-            if(Math.sqrt(dx*dx + dy*dy) < 22) { 
+            if(Math.sqrt(dx*dx + dy*dy) < 18) { 
                 isGameOver = true; 
                 document.getElementById('cemetery-screen').style.display = 'flex'; 
             }
@@ -277,7 +282,6 @@
         ctx.scale(cameraScale, cameraScale);
         ctx.translate(-car.x, -car.y);
 
-        // Cuadrícula
         ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
         const grid = 100;
         const startX = Math.floor((car.x - canvas.width/cameraScale)/grid)*grid;
@@ -286,16 +290,14 @@
             ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, startY + (canvas.height/cameraScale)*2.5); ctx.stroke();
         }
         for(let y=startY; y < startY + (canvas.height/cameraScale)*2.5; y+=grid) {
-            ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(startX + (canvas.width/cameraScale)*2.5, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(startX + (canvas.width/cameraScale)*2.5); ctx.stroke();
         }
 
-        // Conos
         cones.forEach(c => {
             ctx.fillStyle = "#e67e22"; ctx.beginPath(); ctx.arc(c.x, c.y, 10, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, Math.PI*2); ctx.fill();
         });
 
-        // Auto
         ctx.save();
         ctx.translate(car.x, car.y); ctx.rotate(car.angle);
         ctx.fillStyle = "#2c3e50"; ctx.fillRect(-car.height/2, -car.width/2, car.height, car.width);
